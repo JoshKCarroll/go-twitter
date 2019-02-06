@@ -155,6 +155,7 @@ type Stream struct {
 	done     chan struct{}
 	group    *sync.WaitGroup
 	body     io.Closer
+	expected bool
 }
 
 // newStream creates a Stream and starts a goroutine to retry connecting and
@@ -175,6 +176,7 @@ func newStream(client *http.Client, req *http.Request, expBackoff, aggExpBackoff
 // Stop signals retry and receiver to stop, closes the Messages channel, and
 // blocks until done.
 func (s *Stream) Stop() {
+	s.expected = true
 	close(s.done)
 	// Scanner does not have a Stop() or take a done channel, so for low volume
 	// streams Scan() blocks until the next keep-alive. Close the resp.Body to
@@ -184,6 +186,12 @@ func (s *Stream) Stop() {
 	}
 	// block until the retry goroutine stops
 	s.group.Wait()
+}
+
+// ExpectedStop indicates whether Stream halting was due to an expected Stop()
+// or some error condition.
+func (s *Stream) ExpectedStop() bool {
+	return s.expected
 }
 
 // retry retries making the given http.Request and receiving the response
