@@ -177,12 +177,12 @@ func newStream(client *http.Client, req *http.Request, expBackoff, aggExpBackoff
 // Stop signals retry and receiver to stop, closes the Messages channel, and
 // blocks until done.
 func (s *Stream) Stop() {
+	s.mutex.Lock()
 	s.expected = true
 	close(s.done)
 	// Scanner does not have a Stop() or take a done channel, so for low volume
 	// streams Scan() blocks until the next keep-alive. Close the resp.Body to
 	// escape and stop the stream in a timely fashion.
-	s.mutex.Lock()
 	if s.body != nil {
 		s.body.Close()
 	}
@@ -194,7 +194,10 @@ func (s *Stream) Stop() {
 // ExpectedStop indicates whether Stream halting was due to an expected Stop()
 // or some error condition.
 func (s *Stream) ExpectedStop() bool {
-	return s.expected
+	s.mutex.Lock()
+	result := s.expected
+	s.mutex.Unlock()
+	return result
 }
 
 // retry retries making the given http.Request and receiving the response
