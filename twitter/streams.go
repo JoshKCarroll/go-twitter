@@ -156,6 +156,7 @@ type Stream struct {
 	group    *sync.WaitGroup
 	body     io.Closer
 	expected bool
+	mutex    sync.Mutex
 }
 
 // newStream creates a Stream and starts a goroutine to retry connecting and
@@ -181,9 +182,11 @@ func (s *Stream) Stop() {
 	// Scanner does not have a Stop() or take a done channel, so for low volume
 	// streams Scan() blocks until the next keep-alive. Close the resp.Body to
 	// escape and stop the stream in a timely fashion.
+	s.mutex.Lock()
 	if s.body != nil {
 		s.body.Close()
 	}
+	s.mutex.Unlock()
 	// block until the retry goroutine stops
 	s.group.Wait()
 }
@@ -213,7 +216,9 @@ func (s *Stream) retry(req *http.Request, expBackOff backoff.BackOff, aggExpBack
 		}
 		// when err is nil, resp contains a non-nil Body which must be closed
 		defer resp.Body.Close()
+		s.mutex.Lock()
 		s.body = resp.Body
+		s.mutex.Unlock()
 		switch resp.StatusCode {
 		case 200:
 			// receive stream response Body, handles closing
