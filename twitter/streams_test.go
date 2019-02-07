@@ -128,12 +128,16 @@ func TestStream_Filter(t *testing.T) {
 	stream, err := client.Streams.Filter(streamFilterParams)
 	// assert that the expected messages are received
 	assert.NoError(t, err)
-	defer stream.Stop()
 	for message := range stream.Messages {
 		demux.Handle(message)
 	}
 	expectedCounts := &counter{all: 3, other: 3}
 	assert.Equal(t, expectedCounts, counts)
+
+	// test ExpectedStop
+	assert.False(t, stream.ExpectedStop())
+	stream.Stop()
+	assert.True(t, stream.ExpectedStop())
 }
 
 func TestStream_Sample(t *testing.T) {
