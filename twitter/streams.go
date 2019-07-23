@@ -284,7 +284,9 @@ func (s *Stream) receiveError(resp *http.Response) {
 	if resp.ContentLength > 0 && body[0] == '{' {
 		s.Messages <- getMessage(body)
 	} else {
-		s.Messages <- fmt.Sprintf("Error connecting to Twitter: %d - %s", resp.StatusCode, body)
+		msgText := fmt.Sprintf("Error connecting to Twitter: %d - %s", resp.StatusCode, body)
+		msg := APIError{Errors: []ErrorDetail{ErrorDetail{Message: msgText, Code: resp.StatusCode}}}
+		s.Messages <- msg
 	}
 }
 
