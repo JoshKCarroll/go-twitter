@@ -419,6 +419,6 @@ func TestStreamRetry_AggressiveBackoff(t *testing.T) {
 
 	// assert aggressive exponential backoff in response to 420 and 429
 	assert.Equal(t, 2, aggExpBackoff.Count)
-	expectedCounts := &counter{all: 2, apiError: 1, other: 1}
+	expectedCounts := &counter{all: 2, apiError: 2}
 	assert.Equal(t, expectedCounts, counts)
 }
