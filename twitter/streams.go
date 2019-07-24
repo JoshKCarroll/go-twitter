@@ -230,15 +230,15 @@ func (s *Stream) retry(req *http.Request, expBackOff backoff.BackOff, aggExpBack
 			aggExpBackOff.Reset()
 		case 503:
 			// exponential backoff
-			s.receiveError(resp)
+			s.receiveError(resp, false)
 			wait = expBackOff.NextBackOff()
 		case 420, 429:
 			// aggressive exponential backoff
-			s.receiveError(resp)
+			s.receiveError(resp, true)
 			wait = aggExpBackOff.NextBackOff()
 		default:
 			// stop retrying for other response codes
-			s.receiveError(resp)
+			s.receiveError(resp, false)
 			resp.Body.Close()
 			return
 		}
@@ -278,15 +278,15 @@ func (s *Stream) receiveStream(body io.Reader) {
 
 // receiveError JSON decodes Twitter API errors when they are present and sends
 // either an APIError or a an error message string to the Messages channel.
-func (s *Stream) receiveError(resp *http.Response) {
+func (s *Stream) receiveError(resp *http.Response, expectedError bool) {
 	body, _ := ioutil.ReadAll(resp.Body)
 
 	if resp.ContentLength > 0 && body[0] == '{' {
 		s.Messages <- getMessage(body)
+	} else if expectedError {
+		s.Messages <- &APIError{Errors: []ErrorDetail{ErrorDetail{Message: string(body), Code: resp.StatusCode}}}
 	} else {
-		msgText := fmt.Sprintf("Error connecting to Twitter: %d - %s", resp.StatusCode, body)
-		msg := &APIError{Errors: []ErrorDetail{ErrorDetail{Message: msgText, Code: resp.StatusCode}}}
-		s.Messages <- msg
+		s.Messages <- fmt.Sprintf("Error connecting to Twitter: %d - %s", resp.StatusCode, body)
 	}
 }
 
