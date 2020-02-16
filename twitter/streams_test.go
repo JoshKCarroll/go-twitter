@@ -380,6 +380,39 @@ func TestStreamRetry_ExponentialBackoff(t *testing.T) {
 	assert.Equal(t, expectedCounts, counts)
 }
 
+func TestStreamRetry500_ExponentialBackoff(t *testing.T) {
+	httpClient, mux, server := testServer()
+	defer server.Close()
+
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+	})
+
+	stream := &Stream{
+		client:   httpClient,
+		Messages: make(chan interface{}),
+		done:     make(chan struct{}),
+		group:    &sync.WaitGroup{},
+	}
+	stream.group.Add(1)
+	req, _ := http.NewRequest("GET", "http://example.com/", nil)
+	expBackoff := &BackOffRecorder{MaxRetries: 1}
+	// receive messages and count types, stop receiving after max retries
+	counts := &counter{}
+	demux := newCounterDemux(counts)
+
+	go stream.retry(req, expBackoff, nil)
+	defer stream.Stop()
+	for message := range stream.Messages {
+		demux.Handle(message)
+	}
+
+	// assert exponential backoff in response to 503
+	assert.Equal(t, 1, expBackoff.Count)
+	expectedCounts := &counter{all: 1, other: 1}
+	assert.Equal(t, expectedCounts, counts)
+}
+
 func TestStreamRetry_AggressiveBackoff(t *testing.T) {
 	httpClient, mux, server := testServer()
 	defer server.Close()
