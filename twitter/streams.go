@@ -228,9 +228,9 @@ func (s *Stream) retry(req *http.Request, expBackOff backoff.BackOff, aggExpBack
 			s.receiveStream(resp.Body)
 			expBackOff.Reset()
 			aggExpBackOff.Reset()
-		case 503:
-			// exponential backoff
-			s.receiveError(resp, false)
+		case 500, 502, 503, 504:
+			// exponential backoff is appropriate for all these cases
+			s.receiveError(resp, true)
 			wait = expBackOff.NextBackOff()
 		case 420, 429:
 			// aggressive exponential backoff
